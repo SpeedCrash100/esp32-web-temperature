@@ -5,6 +5,8 @@ use esp_hal::{
     time::Rate,
 };
 
+use crate::rgb_led::RgbLedAsync;
+
 pub struct WS2812<Chan> {
     chan: Chan,
     rate: Rate,
@@ -19,8 +21,13 @@ where
 
         (ns * mhz / 1000) as u16
     }
+}
 
-    pub async fn set_color(&mut self, r: u8, g: u8, b: u8) {
+impl<Chan> RgbLedAsync for WS2812<Chan>
+where
+    Chan: TxChannelAsync,
+{
+    async fn set_color(&mut self, r: u8, g: u8, b: u8) {
         let t0: u32 = PulseCode::new(
             Level::High,
             self.get_length(350),
@@ -58,7 +65,7 @@ where
 /// - `channel` - RMT channel to use
 /// - `rate` - base rate of rmt channel input_freq/prescaler_from_tx_cfg
 ///
-pub fn init<C>(channel: C, rate: Rate) -> WS2812<C>
+pub fn init<C>(channel: C, rate: Rate) -> impl RgbLedAsync
 where
     C: TxChannelAsync,
 {

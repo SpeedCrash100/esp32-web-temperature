@@ -1,12 +1,20 @@
 [package]
-edition      = "2021"
-name         = "esp-temperature"
+edition = "2021"
+name = "esp-temperature"
 rust-version = "1.86"
-version      = "0.1.0"
+version = "0.1.0"
 
 [[bin]]
 name = "esp-temperature"
 path = "./src/bin/main.rs"
+test = false
+doctest = false
+bench = false
+
+[lib]
+test = false
+doctest = false
+bench = false
 
 [dependencies]
 defmt = "1.0.1"
@@ -17,15 +25,10 @@ esp-hal = { version = "=1.0.0-rc.0", features = [
   "unstable",
 ] }
 
-embassy-net = { version = "0.7.0", features = [
-  "defmt",
-  "dhcpv4",
-  "medium-ethernet",
-  "tcp",
-  "udp",
-] }
+embassy-net = { version = "0.7.0", features = ["defmt", "dhcpv4", "medium-ethernet", "tcp", "udp"] }
 embedded-io = { version = "0.6.1", features = ["defmt-03"] }
 embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
+embedded-hal-async = { version = "1" }
 esp-alloc = { version = "0.8.0", features = ["defmt"] }
 esp-backtrace = { version = "0.17.0", features = [
   "defmt",
@@ -64,6 +67,7 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-udp",
 ] }
 static_cell = "2.1.1"
+embassy-sync = { version = "0.7" }
 
 
 [profile.dev]
@@ -72,10 +76,10 @@ static_cell = "2.1.1"
 opt-level = "s"
 
 [profile.release]
-codegen-units    = 1     # LLVM can perform better optimizations using a single thread
-debug            = 2
+codegen-units = 1        # LLVM can perform better optimizations using a single thread
+debug = 2
 debug-assertions = false
-incremental      = false
-lto              = 'fat'
-opt-level        = 's'
-overflow-checks  = false
+incremental = false
+lto = 'fat'
+opt-level = 's'
+overflow-checks = false

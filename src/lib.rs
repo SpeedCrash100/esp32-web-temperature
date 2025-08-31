@@ -1,4 +1,5 @@
 #![no_std]
 
 pub mod color_temp;
-pub mod ws2812;
+pub mod load_indicator;
+pub mod rgb_led;
