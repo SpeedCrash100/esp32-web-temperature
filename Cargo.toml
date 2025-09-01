@@ -68,6 +68,7 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
 ] }
 static_cell = "2.1.1"
 embassy-sync = { version = "0.7" }
+ector = { version = "0.7.0", default-features = false }
 
 
 [profile.dev]

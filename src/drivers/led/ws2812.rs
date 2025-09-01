@@ -5,7 +5,7 @@ use esp_hal::{
     time::Rate,
 };
 
-use crate::rgb_led::RgbLedAsync;
+use crate::drivers::led::RgbLedAsync;
 
 pub struct WS2812<Chan> {
     chan: Chan,
@@ -65,7 +65,7 @@ where
 /// - `channel` - RMT channel to use
 /// - `rate` - base rate of rmt channel input_freq/prescaler_from_tx_cfg
 ///
-pub fn init<C>(channel: C, rate: Rate) -> impl RgbLedAsync
+pub fn init<C>(channel: C, rate: Rate) -> WS2812<C>
 where
     C: TxChannelAsync,
 {
