@@ -9,12 +9,15 @@
 use core::mem::transmute;
 use core::sync::atomic::{AtomicU8, Ordering};
 
-use defmt::info;
+use defmt::{error, info, trace};
 use embassy_executor::Spawner;
 
 use embassy_time::Timer;
+use embedded_hal_async::i2c::I2c;
 use esp_hal::clock::CpuClock;
 
+use esp_hal::gpio::{Level, Output};
+use esp_hal::i2c::master::Config;
 use esp_hal::rmt::Rmt;
 use esp_hal::time::Rate;
 use esp_hal::timer::systimer::SystemTimer;
@@ -52,6 +55,7 @@ fn main() -> ! {
     )
 }
 
+/// Indicates load of CPU by brightness of the RGB Led
 #[embassy_executor::task]
 async fn indicate_load(mut led: RgbLed) {
     loop {
@@ -64,7 +68,7 @@ async fn indicate_load(mut led: RgbLed) {
             load_normalized as u8,
         );
 
-        info!("Load {}", load);
+        trace!("Load {}", load);
 
         led.set_color(load_color.0, load_color.1, load_color.2)
             .await;
@@ -94,6 +98,29 @@ async fn embassy_main(spawner: Spawner) {
 
     let rgb_led = init_rgb_led(rmt.channel0, freq, peripherals.GPIO8.into()).await;
     spawner.must_spawn(indicate_load(rgb_led));
+
+    let _display_reset = Output::new(peripherals.GPIO10, Level::High, Default::default());
+
+    let mut i2c = init_i2c(
+        peripherals.I2C0,
+        peripherals.GPIO7,
+        peripherals.GPIO6,
+        spawner,
+    )
+    .await;
+
+    info!("i2c scan");
+
+    for addr in 1..127 {
+        match i2c.write(addr, &[0x00]).await {
+            Ok(_) => {
+                info!("Found {:x}", addr);
+            }
+            Err(_) => {
+                // error!("{}: {}", addr, err)
+            }
+        }
+    }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
 }
