@@ -9,9 +9,11 @@
 use core::mem::transmute;
 use core::sync::atomic::{AtomicU8, Ordering};
 
-use defmt::{error, info, trace};
+use defmt::{info, trace};
 use embassy_executor::Spawner;
 
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::mutex::Mutex;
 use embassy_time::Timer;
 use esp_hal::clock::CpuClock;
 
@@ -22,7 +24,10 @@ use esp_hal::time::Rate;
 use esp_hal::timer::systimer::SystemTimer;
 
 use esp_hal::timer::timg::TimerGroup;
+use esp_temperature::drivers::i2c::ector::EctorI2c;
+use esp_temperature::drivers::sensors::temperature::TemperatureSensorAsync;
 use esp_temperature::load_indicator::LoadExecutorHook;
+use esp_temperature::web::SharedTemp;
 use esp_wifi::EspWifiController;
 
 use {esp_backtrace as _, esp_println as _};
@@ -83,7 +88,7 @@ async fn indicate_load(mut led: RgbLed) {
         led.set_color(load_color.0, load_color.1, load_color.2)
             .await;
 
-        Timer::after_secs(1).await
+        Timer::after_millis(250).await
     }
 }
 
@@ -111,16 +116,7 @@ async fn embassy_main(spawner: Spawner) {
 
     let _display_reset = Output::new(peripherals.GPIO10, Level::High, Default::default());
 
-    // Init I2C
-    let i2c = init_i2c(
-        peripherals.I2C0,
-        peripherals.GPIO7,
-        peripherals.GPIO6,
-        spawner,
-    )
-    .await;
-
-    let mut rng = Rng::new(peripherals.RNG);
+    let rng = Rng::new(peripherals.RNG);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     let esp32_wifi_ctrl = &*mk_static!(
         EspWifiController<'static>,
@@ -129,6 +125,15 @@ async fn embassy_main(spawner: Spawner) {
 
     let stack = start_wifi(esp32_wifi_ctrl, peripherals.WIFI, rng, spawner).await;
 
+    let web_temperature = mk_static!(Mutex<NoopRawMutex, f32>,Mutex::new(0.0_f32));
+
+    let web_app_state = mk_static!(
+        esp_temperature::web::AppState,
+        esp_temperature::web::AppState {
+            temp: SharedTemp::new(web_temperature),
+        }
+    );
+
     let web_app = esp_temperature::web::WebApp::default();
     for id in 0..esp_temperature::web::WEB_TASK_POOL_SIZE {
         spawner.must_spawn(esp_temperature::web::web_task(
@@ -136,8 +141,30 @@ async fn embassy_main(spawner: Spawner) {
             stack,
             web_app.router,
             web_app.config,
+            web_app_state,
         ));
     }
 
+    // Init I2C
+    let i2c = init_i2c(
+        peripherals.I2C0,
+        peripherals.GPIO7,
+        peripherals.GPIO6,
+        spawner,
+    )
+    .await;
+    spawner.must_spawn(publish_temperature(i2c, web_temperature));
+
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
+}
+
+#[embassy_executor::task]
+async fn publish_temperature(bus: EctorI2c, out: &'static Mutex<NoopRawMutex, f32>) {
+    let mut lm75b = esp_temperature::drivers::sensors::lm75b::Lm75B::new(bus, 0x48);
+
+    loop {
+        let temp = lm75b.read_temperature().await;
+        *out.lock().await = temp;
+        Timer::after_millis(250).await;
+    }
 }
