@@ -13,18 +13,17 @@ use defmt::{error, info, trace};
 use embassy_executor::Spawner;
 
 use embassy_time::Timer;
-use embedded_hal_async::i2c::I2c;
 use esp_hal::clock::CpuClock;
 
 use esp_hal::gpio::{Level, Output};
-use esp_hal::i2c::master::Config;
 use esp_hal::rmt::Rmt;
+use esp_hal::rng::Rng;
 use esp_hal::time::Rate;
 use esp_hal::timer::systimer::SystemTimer;
 
-use esp_temperature::drivers::sensors::lm75b::Lm75B;
-use esp_temperature::drivers::sensors::temperature::TemperatureSensorAsync;
+use esp_hal::timer::timg::TimerGroup;
 use esp_temperature::load_indicator::LoadExecutorHook;
+use esp_wifi::EspWifiController;
 
 use {esp_backtrace as _, esp_println as _};
 
@@ -40,10 +39,19 @@ esp_bootloader_esp_idf::esp_app_desc!();
 /// Load from main executor
 static CPU_LOAD_THREADING: AtomicU8 = AtomicU8::new(100);
 
+macro_rules! mk_static {
+    ($t:ty,$val:expr) => {{
+        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
+        #[deny(unused_attributes)]
+        let x = STATIC_CELL.uninit().write(($val));
+        x
+    }};
+}
+
 #[esp_hal::main]
 fn main() -> ! {
     let mut executor = ::esp_hal_embassy::Executor::new();
-    // Safety:
+    // Safety: main never returns means it is always will exists
     let static_executor: &'static mut ::esp_hal_embassy::Executor =
         unsafe { transmute(&mut executor) };
 
@@ -103,6 +111,7 @@ async fn embassy_main(spawner: Spawner) {
 
     let _display_reset = Output::new(peripherals.GPIO10, Level::High, Default::default());
 
+    // Init I2C
     let i2c = init_i2c(
         peripherals.I2C0,
         peripherals.GPIO7,
@@ -111,13 +120,14 @@ async fn embassy_main(spawner: Spawner) {
     )
     .await;
 
-    let mut lm75b = Lm75B::new(i2c.clone(), 0x48);
+    let mut rng = Rng::new(peripherals.RNG);
+    let timg0 = TimerGroup::new(peripherals.TIMG0);
+    let esp32_wifi_ctrl = &*mk_static!(
+        EspWifiController<'static>,
+        esp_wifi::init(timg0.timer0, rng).expect("failed to init esp radio ctrl")
+    );
 
-    loop {
-        let temp = lm75b.read_temperature().await;
-        info!("Temp: {}", temp);
-        Timer::after_secs(1).await;
-    }
+    let stack = start_wifi(esp32_wifi_ctrl, peripherals.WIFI, rng, spawner).await;
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
 }
