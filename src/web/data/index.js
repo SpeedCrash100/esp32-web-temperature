@@ -24,9 +24,23 @@ async function updateReadings() {
 
     // Calculate and Display Dew Point if both values were fetched successfully
     if (temperature !== null && humidity !== null && !isNaN(temperature) && !isNaN(humidity)) {
-        // Calculate Dew Point using the simplified formula
-        // T_dew = T - ((100 - RH) / 5)
-        const dewPoint = temperature - ((100 - humidity) / 5);
+        // Calculate Dew Point using an approximation of the Magnus-Tetens equation for better accuracy
+        // Formula: T_dew = T - ((100 - RH) / 5) is a simplification.
+        // A more accurate formula is based on the Clausius-Clapeyron relation.
+        // One common approximation is:
+        // T_dew = T - ((100 - %RH) / 5) <-- Original simplified formula
+        // A more complex but accurate version involves the saturation vapor pressure.
+        // Let's use an established approximation:
+        // e_s(T) = 0.6108 * exp((17.27 * T) / (T + 237.3))  [Saturation vapor pressure in kPa]
+        // e(T, RH) = e_s(T) * (RH / 100)                  [Actual vapor pressure]
+        // T_dew = (237.3 * ln(e(T, RH) / 0.6108)) / (17.27 - ln(e(T, RH) / 0.6108)) [Dew point temperature in °C]
+
+        // For practical purposes in JavaScript, we can use a simplified but more accurate formula
+        // derived from the above:
+        const a = 17.27;
+        const b = 237.7;
+        const gamma = ((humidity / 100) * 6.112 * Math.exp((a * temperature) / (b + temperature))) / 6.112;
+        const dewPoint = (b * Math.log(gamma)) / (a - Math.log(gamma));
         document.getElementById('dewpoint-value').textContent = dewPoint.toFixed(1); // Display with 1 decimal
     } else {
         // If either value failed or is invalid, show N/A or Error for dew point
