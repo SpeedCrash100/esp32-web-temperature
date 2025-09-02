@@ -22,6 +22,8 @@ use esp_hal::rmt::Rmt;
 use esp_hal::time::Rate;
 use esp_hal::timer::systimer::SystemTimer;
 
+use esp_temperature::drivers::sensors::lm75b::Lm75B;
+use esp_temperature::drivers::sensors::temperature::TemperatureSensorAsync;
 use esp_temperature::load_indicator::LoadExecutorHook;
 
 use {esp_backtrace as _, esp_println as _};
@@ -101,7 +103,7 @@ async fn embassy_main(spawner: Spawner) {
 
     let _display_reset = Output::new(peripherals.GPIO10, Level::High, Default::default());
 
-    let mut i2c = init_i2c(
+    let i2c = init_i2c(
         peripherals.I2C0,
         peripherals.GPIO7,
         peripherals.GPIO6,
@@ -109,17 +111,12 @@ async fn embassy_main(spawner: Spawner) {
     )
     .await;
 
-    info!("i2c scan");
+    let mut lm75b = Lm75B::new(i2c.clone(), 0x48);
 
-    for addr in 1..127 {
-        match i2c.write(addr, &[0x00]).await {
-            Ok(_) => {
-                info!("Found {:x}", addr);
-            }
-            Err(_) => {
-                // error!("{}: {}", addr, err)
-            }
-        }
+    loop {
+        let temp = lm75b.read_temperature().await;
+        info!("Temp: {}", temp);
+        Timer::after_secs(1).await;
     }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
