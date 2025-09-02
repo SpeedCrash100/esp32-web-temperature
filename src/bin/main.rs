@@ -129,5 +129,15 @@ async fn embassy_main(spawner: Spawner) {
 
     let stack = start_wifi(esp32_wifi_ctrl, peripherals.WIFI, rng, spawner).await;
 
+    let web_app = esp_temperature::web::WebApp::default();
+    for id in 0..esp_temperature::web::WEB_TASK_POOL_SIZE {
+        spawner.must_spawn(esp_temperature::web::web_task(
+            id,
+            stack,
+            web_app.router,
+            web_app.config,
+        ));
+    }
+
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
 }

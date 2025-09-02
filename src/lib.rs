@@ -1,9 +1,11 @@
 #![no_std]
+#![feature(impl_trait_in_assoc_type)]
 
 pub mod boards;
 pub mod color_temp;
 pub mod drivers;
 pub mod load_indicator;
+pub mod web;
 
 macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
