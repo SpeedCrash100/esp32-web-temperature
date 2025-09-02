@@ -16,6 +16,21 @@ impl LoadExecutorHook {
             load,
         }
     }
+
+    fn update_load(&self, current_load: u8, time: Duration) {
+        let prev_load = self.load.load(Ordering::SeqCst) as u64;
+        let filter_coff = (time.as_micros()).clamp(10, 1000) / 10; // This will make 0-100 % we will use from new value if peaked just once
+
+        let oldest_factor = 100 - filter_coff;
+        let newest_factor = filter_coff;
+
+        let oldest = oldest_factor * prev_load / 100;
+        let newest = newest_factor * (current_load as u64) / 100;
+
+        let load = (oldest + newest).clamp(0, 100) as u8;
+
+        self.load.store(load, Ordering::SeqCst);
+    }
 }
 
 impl esp_hal_embassy::Callbacks for LoadExecutorHook {
@@ -34,7 +49,7 @@ impl esp_hal_embassy::Callbacks for LoadExecutorHook {
                     100
                 };
 
-                self.load.store(load as u8, Ordering::SeqCst);
+                self.update_load(load as u8, full_time);
             } else {
                 // Idle time not stored. Do nothing
             }
