@@ -1,16 +1,32 @@
 mod routes;
 
 use embassy_net::Stack;
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::Duration;
 use esp_alloc as _;
 use picoserve::{response::File, routing, AppRouter, AppWithStateBuilder, Router};
 
 #[derive(Clone)]
-pub struct SharedTemp(&'static Mutex<NoopRawMutex, f32>);
-
+pub struct SharedTemp(&'static Mutex<CriticalSectionRawMutex, f32>);
 impl SharedTemp {
-    pub fn new(m: &'static Mutex<NoopRawMutex, f32>) -> Self {
+    pub fn new(m: &'static Mutex<CriticalSectionRawMutex, f32>) -> Self {
+        Self(m)
+    }
+
+    pub async fn get(&self) -> f32 {
+        *self.0.lock().await
+    }
+
+    pub async fn set(&self, temp: f32) {
+        *self.0.lock().await = temp;
+    }
+}
+
+#[derive(Clone)]
+pub struct SharedHumidity(&'static Mutex<CriticalSectionRawMutex, f32>);
+
+impl SharedHumidity {
+    pub fn new(m: &'static Mutex<CriticalSectionRawMutex, f32>) -> Self {
         Self(m)
     }
 
@@ -25,11 +41,18 @@ impl SharedTemp {
 
 pub struct AppState {
     pub temp: SharedTemp,
+    pub humidity: SharedHumidity,
 }
 
 impl picoserve::extract::FromRef<AppState> for SharedTemp {
     fn from_ref(state: &AppState) -> Self {
         state.temp.clone()
+    }
+}
+
+impl picoserve::extract::FromRef<AppState> for SharedHumidity {
+    fn from_ref(state: &AppState) -> Self {
+        state.humidity.clone()
     }
 }
 
@@ -54,6 +77,7 @@ impl AppWithStateBuilder for Application {
                 routing::get_service(File::javascript("web/data/index.js")),
             )
             .route("/temperature", routing::get(routes::get_temperature))
+            .route("/humidity", routing::get(routes::get_humidity))
     }
 }
 

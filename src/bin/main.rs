@@ -9,25 +9,26 @@
 use core::mem::transmute;
 use core::sync::atomic::{AtomicU8, Ordering};
 
-use defmt::{info, trace};
+use defmt::{error, info, trace};
 use embassy_executor::Spawner;
 
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_time::Timer;
+use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
 
-use esp_hal::gpio::{Level, Output};
+use esp_hal::interrupt::software::SoftwareInterruptControl;
+use esp_hal::interrupt::Priority;
 use esp_hal::rmt::Rmt;
 use esp_hal::rng::Rng;
 use esp_hal::time::Rate;
 use esp_hal::timer::systimer::SystemTimer;
 
 use esp_hal::timer::timg::TimerGroup;
-use esp_temperature::drivers::i2c::ector::EctorI2c;
-use esp_temperature::drivers::sensors::temperature::TemperatureSensorAsync;
+use esp_hal_embassy::InterruptExecutor;
+use esp_temperature::drivers::sensors::dht22::Dht22Esp32;
 use esp_temperature::load_indicator::LoadExecutorHook;
-use esp_temperature::web::SharedTemp;
+use esp_temperature::web::{SharedHumidity, SharedTemp};
 use esp_wifi::EspWifiController;
 
 use {esp_backtrace as _, esp_println as _};
@@ -104,6 +105,14 @@ async fn embassy_main(spawner: Spawner) {
     let timer0 = SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(timer0.alarm0);
 
+    let sw_ints = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+    let executor_medium = mk_static!(
+        InterruptExecutor<0>,
+        InterruptExecutor::new(sw_ints.software_interrupt0)
+    );
+
+    let spawner_medium = executor_medium.start(Priority::Priority3);
+
     info!("Embassy initialized!");
 
     let freq = Rate::from_mhz(80);
@@ -114,8 +123,6 @@ async fn embassy_main(spawner: Spawner) {
     let rgb_led = init_rgb_led(rmt.channel0, freq, peripherals.GPIO8.into()).await;
     spawner.must_spawn(indicate_load(rgb_led));
 
-    let _display_reset = Output::new(peripherals.GPIO10, Level::High, Default::default());
-
     let rng = Rng::new(peripherals.RNG);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     let esp32_wifi_ctrl = &*mk_static!(
@@ -125,12 +132,16 @@ async fn embassy_main(spawner: Spawner) {
 
     let stack = start_wifi(esp32_wifi_ctrl, peripherals.WIFI, rng, spawner).await;
 
-    let web_temperature = mk_static!(Mutex<NoopRawMutex, f32>,Mutex::new(0.0_f32));
+    let web_temperature = mk_static!(Mutex<CriticalSectionRawMutex, f32>,Mutex::new(0.0_f32));
+    let shared_temperature = SharedTemp::new(web_temperature);
+    let web_humidity = mk_static!(Mutex<CriticalSectionRawMutex, f32>,Mutex::new(0.0_f32));
+    let shared_humidity = SharedHumidity::new(web_humidity);
 
     let web_app_state = mk_static!(
         esp_temperature::web::AppState,
         esp_temperature::web::AppState {
-            temp: SharedTemp::new(web_temperature),
+            temp: shared_temperature.clone(),
+            humidity: shared_humidity.clone(),
         }
     );
 
@@ -145,26 +156,40 @@ async fn embassy_main(spawner: Spawner) {
         ));
     }
 
-    // Init I2C
-    let i2c = init_i2c(
-        peripherals.I2C0,
-        peripherals.GPIO7,
-        peripherals.GPIO6,
-        spawner,
-    )
-    .await;
-    spawner.must_spawn(publish_temperature(i2c, web_temperature));
+    let dht_pin = esp_hal::gpio::Flex::new(peripherals.GPIO4);
+
+    let dht = Dht22Esp32::new(dht_pin);
+    spawner_medium.must_spawn(publish_web_environment(
+        dht,
+        shared_temperature,
+        shared_humidity,
+    ));
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
 }
 
 #[embassy_executor::task]
-async fn publish_temperature(bus: EctorI2c, out: &'static Mutex<NoopRawMutex, f32>) {
-    let mut lm75b = esp_temperature::drivers::sensors::lm75b::Lm75B::new(bus, 0x48);
-
+async fn publish_web_environment(
+    mut dht: Dht22Esp32,
+    out_temp: SharedTemp,
+    out_humidity: SharedHumidity,
+) {
     loop {
-        let temp = lm75b.read_temperature().await;
-        *out.lock().await = temp;
-        Timer::after_millis(250).await;
+        Timer::after_secs(2).await;
+
+        if embassy_time::with_timeout(Duration::from_millis(1500), dht.read())
+            .await
+            .is_err()
+        {
+            error!("failed to get environment data");
+            dht.reset().await;
+            continue;
+        }
+
+        let temp = dht.temperature();
+        let humi = dht.humidity();
+
+        out_temp.set(temp).await;
+        out_humidity.set(humi).await;
     }
 }

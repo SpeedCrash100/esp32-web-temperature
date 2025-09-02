@@ -25,10 +25,17 @@ esp-hal = { version = "=1.0.0-rc.0", features = [
   "unstable",
 ] }
 
-embassy-net = { version = "0.7.0", features = ["defmt", "dhcpv4", "medium-ethernet", "tcp", "udp"] }
+embassy-net = { version = "0.7.0", features = [
+  "defmt",
+  "dhcpv4",
+  "medium-ethernet",
+  "tcp",
+  "udp",
+] }
 embedded-io = { version = "0.6.1", features = ["defmt-03"] }
 embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
 embedded-hal-async = { version = "1" }
+embedded-hal = { version = "1" }
 esp-alloc = { version = "0.8.0", features = ["defmt"] }
 esp-backtrace = { version = "0.17.0", features = [
   "defmt",
