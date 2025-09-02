@@ -4,21 +4,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello</title>
-    <style>
-    </style>
+    <title>Sensor Readings</title>
+    <link rel="stylesheet" href="/index.css">
 </head>
 
 <body>
-    <header style="display: flex; align-items: center; gap: 10px;">
+    <header>
+        <h1>Sensor Dashboard</h1>
     </header>
     <nav>
+        Current Readings:
     </nav>
     <main>
-        Hello Web
+        <div class="metric">
+            <span class="metric-label">Temperature:</span>
+            <span id="temperature-value" class="metric-value">Loading...</span>
+            <span>°C</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Humidity:</span>
+            <span id="humidity-value" class="metric-value">Loading...</span>
+            <span>%</span>
+        </div>
+        <!-- New div for Dew Point -->
+        <div class="metric">
+            <span class="metric-label">Dew Point:</span>
+            <span id="dewpoint-value" class="metric-value">Loading...</span>
+            <span>°C</span>
+        </div>
     </main>
     <footer>
+        &copy; 2023 Sensor Data
     </footer>
+    <script src="/index.js"></script>
 </body>
 
 </html>

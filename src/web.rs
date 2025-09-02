@@ -74,7 +74,7 @@ impl AppWithStateBuilder for Application {
             )
             .route(
                 "/index.js",
-                routing::get_service(File::javascript("web/data/index.js")),
+                routing::get_service(File::javascript(include_str!("web/data/index.js"))),
             )
             .route("/temperature", routing::get(routes::get_temperature))
             .route("/humidity", routing::get(routes::get_humidity))
