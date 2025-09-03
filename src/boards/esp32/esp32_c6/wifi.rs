@@ -38,6 +38,8 @@ pub async fn start_wifi(
     spawner.must_spawn(connection(controller));
     spawner.must_spawn(ipv4_watcher(stack));
 
+    // stack.wait_config_up().await;
+
     stack
 }
 
@@ -69,7 +71,8 @@ async fn connection(mut controller: WifiController<'static>) {
                 // wait until we're no longer connected
 
                 controller.wait_for_event(WifiEvent::StaDisconnected).await;
-                Timer::after(Duration::from_millis(5000)).await
+                controller.stop_async().await.ok();
+                Timer::after(Duration::from_millis(5000)).await;
             }
             _ => {}
         }

@@ -426,7 +426,6 @@ checksum = "f820157f198ada183ad62e0a66f554c610cdcd1a9f27d4b316358103ced7a1f8"
 dependencies = [
  "cfg-if",
  "critical-section",
- "defmt 0.3.100",
  "document-features",
  "embassy-time-driver",
  "embedded-hal 0.2.7",
@@ -805,7 +804,7 @@ dependencies = [
  "embassy-executor",
  "embassy-net",
  "embassy-sync 0.7.2",
- "embassy-time 0.4.0",
+ "embassy-time 0.5.0",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
  "embedded-io",
@@ -817,7 +816,9 @@ dependencies = [
  "esp-hal-embassy",
  "esp-println",
  "esp-wifi",
+ "num-traits",
  "picoserve",
+ "ringbuffer",
  "serde",
  "smoltcp",
  "static_cell",
@@ -1254,8 +1255,9 @@ checksum = "33c13ee221d37df77538b033b831099235067c6a3fdcd2b80ef46c3d5b96e3b2"
 dependencies = [
  "const-sha1",
  "data-encoding",
+ "defmt 0.3.100",
  "embassy-net",
- "embassy-time 0.4.0",
+ "embassy-time 0.5.0",
  "embedded-io-async",
  "futures-util",
  "heapless",
@@ -1394,6 +1396,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 
 [[package]]
+name = "ringbuffer"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3df6368f71f205ff9c33c076d170dd56ebf68e8161c733c0caa07a7a5509ed53"
+
+[[package]]
 name = "riscv"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1461,6 +1469,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b81787e655bd59cecadc91f7b6b8651330b2be6c33246039a65e5cd6f4e0828"
 dependencies = [
+ "defmt 0.3.100",
  "heapless",
  "ryu",
  "serde",

@@ -47,6 +47,7 @@ where
 
 /// # Warning
 ///
+/// Do not use in Select
 /// This implementation is NOT cancel-safe. It will panic it you try to do so
 ///
 ///

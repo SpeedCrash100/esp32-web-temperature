@@ -5,6 +5,7 @@
     reason = "mem::forget is generally not safe to do with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
+#![feature(impl_trait_in_assoc_type)]
 
 use core::mem::transmute;
 use core::sync::atomic::{AtomicU8, Ordering};
@@ -15,8 +16,10 @@ use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
+use embedded_hal_async::i2c::I2c;
 use esp_hal::clock::CpuClock;
 
+use esp_hal::gpio::Output;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::interrupt::Priority;
 use esp_hal::rmt::Rmt;
@@ -28,6 +31,7 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_hal_embassy::InterruptExecutor;
 use esp_temperature::drivers::sensors::dht22::Dht22Esp32;
 use esp_temperature::load_indicator::LoadExecutorHook;
+use esp_temperature::mutex::AtomicMutex;
 use esp_temperature::web::{SharedHumidity, SharedTemp};
 use esp_wifi::EspWifiController;
 
@@ -132,9 +136,9 @@ async fn embassy_main(spawner: Spawner) {
 
     let stack = start_wifi(esp32_wifi_ctrl, peripherals.WIFI, rng, spawner).await;
 
-    let web_temperature = mk_static!(Mutex<CriticalSectionRawMutex, f32>,Mutex::new(0.0_f32));
+    let web_temperature = mk_static!(AtomicMutex<f32>, AtomicMutex::new(0.0_f32));
     let shared_temperature = SharedTemp::new(web_temperature);
-    let web_humidity = mk_static!(Mutex<CriticalSectionRawMutex, f32>,Mutex::new(0.0_f32));
+    let web_humidity = mk_static!(AtomicMutex<f32>, AtomicMutex::new(0.0_f32));
     let shared_humidity = SharedHumidity::new(web_humidity);
 
     let web_app_state = mk_static!(
@@ -164,6 +168,26 @@ async fn embassy_main(spawner: Spawner) {
         shared_temperature,
         shared_humidity,
     ));
+
+    let mut i2c = init_i2c(
+        peripherals.I2C0,
+        peripherals.GPIO7,
+        peripherals.GPIO6,
+        spawner,
+    )
+    .await;
+
+    let _display_pin = Output::new(
+        peripherals.GPIO5,
+        esp_hal::gpio::Level::High,
+        Default::default(),
+    );
+
+    for i in 1..127 {
+        if i2c.write(i, &[0x00]).await.is_ok() {
+            info!("I2C: dev@{:x}", i)
+        }
+    }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
 }

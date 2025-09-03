@@ -1,5 +1,6 @@
 mod i2c;
 mod rgb;
+mod sensors;
 mod wifi;
 
 pub use rgb::{init_rgb_led, RgbLed};

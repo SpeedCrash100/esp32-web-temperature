@@ -48,9 +48,10 @@ esp-println = { version = "0.15.0", features = ["defmt-espflash", "esp32c6"] }
 critical-section = "1.2.0"
 embassy-executor = { version = "0.7.0", features = [
   "defmt",
-  "task-arena-size-20480",
+  "nightly",
+  "task-arena-size-65536",
 ] }
-embassy-time = { version = "0.4.0", features = ["defmt"] }
+embassy-time = { version = "0.5.0", features = ["defmt"] }
 esp-hal-embassy = { version = "0.9.0", features = ["defmt", "esp32c6"] }
 esp-wifi = { version = "0.15.0", features = [
   "builtin-scheduler",
@@ -76,8 +77,10 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
 static_cell = "2.1.1"
 embassy-sync = { version = "0.7" }
 ector = { version = "0.7.0", default-features = false }
-picoserve = { version = "0.16.0", features = ["embassy"] }
+picoserve = { version = "0.16.0", features = ["embassy", "defmt"] }
 serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+ringbuffer = { version = "0.15.0", default-features = false }
+num-traits = { version = "0.2.19", default-features = false }
 
 
 [profile.dev]

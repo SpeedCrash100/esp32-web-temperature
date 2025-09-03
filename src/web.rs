@@ -1,15 +1,16 @@
 mod routes;
 
 use embassy_net::Stack;
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::Duration;
 use esp_alloc as _;
 use picoserve::{response::File, routing, AppRouter, AppWithStateBuilder, Router};
 
+use crate::mutex::AtomicMutex;
+
 #[derive(Clone)]
-pub struct SharedTemp(&'static Mutex<CriticalSectionRawMutex, f32>);
+pub struct SharedTemp(&'static AtomicMutex<f32>);
 impl SharedTemp {
-    pub fn new(m: &'static Mutex<CriticalSectionRawMutex, f32>) -> Self {
+    pub fn new(m: &'static AtomicMutex<f32>) -> Self {
         Self(m)
     }
 
@@ -23,10 +24,10 @@ impl SharedTemp {
 }
 
 #[derive(Clone)]
-pub struct SharedHumidity(&'static Mutex<CriticalSectionRawMutex, f32>);
+pub struct SharedHumidity(&'static AtomicMutex<f32>);
 
 impl SharedHumidity {
-    pub fn new(m: &'static Mutex<CriticalSectionRawMutex, f32>) -> Self {
+    pub fn new(m: &'static AtomicMutex<f32>) -> Self {
         Self(m)
     }
 
@@ -107,7 +108,7 @@ pub async fn web_task(
         &mut http_buffer,
         state,
     )
-    .await
+    .await;
 }
 
 pub struct WebApp {
