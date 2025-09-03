@@ -5,8 +5,8 @@ pub mod boards;
 pub mod color_temp;
 pub mod drivers;
 pub mod load_indicator;
-pub mod mutex;
 pub mod sensor_data;
+pub mod sync;
 pub mod web;
 
 macro_rules! mk_static {

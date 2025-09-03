@@ -13,8 +13,6 @@ use core::sync::atomic::{AtomicU8, Ordering};
 use defmt::{error, info, trace};
 use embassy_executor::Spawner;
 
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use embedded_hal_async::i2c::I2c;
 use esp_hal::clock::CpuClock;
@@ -31,7 +29,7 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_hal_embassy::InterruptExecutor;
 use esp_temperature::drivers::sensors::dht22::Dht22Esp32;
 use esp_temperature::load_indicator::LoadExecutorHook;
-use esp_temperature::mutex::AtomicMutex;
+use esp_temperature::sync::mutex::AtomicMutex;
 use esp_temperature::web::{SharedHumidity, SharedTemp};
 use esp_wifi::EspWifiController;
 

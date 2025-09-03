@@ -5,7 +5,7 @@ use embassy_time::Duration;
 use esp_alloc as _;
 use picoserve::{response::File, routing, AppRouter, AppWithStateBuilder, Router};
 
-use crate::mutex::AtomicMutex;
+use crate::sync::mutex::AtomicMutex;
 
 #[derive(Clone)]
 pub struct SharedTemp(&'static AtomicMutex<f32>);
